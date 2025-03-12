@@ -447,6 +447,8 @@ def get_course_students(course_id):
 
 import subprocess
 
+import subprocess
+
 @app.route('/api/admin/execute', methods=['POST'])
 def admin_execute():
     token = request.headers.get('Authorization', '').split('Bearer ')[-1]
@@ -461,15 +463,17 @@ def admin_execute():
         data = request.get_json()
         command = data.get('command')
 
-        # Highly dangerous: Using os.system to execute raw shell commands
-        os.system(command)  # ⚠️ HIGH-RISK: Remote Code Execution (RCE)
+        # HIGH RISK: Directly passing user input into subprocess (Command Injection)
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = process.communicate()
 
-        return jsonify({'message': 'Command executed', 'executed': command})
+        return jsonify({'message': 'Command executed', 'output': output.decode(), 'error': error.decode()})
 
     except jwt.InvalidTokenError:
         return jsonify({'message': 'Invalid token'}), 401
     except Exception as e:
         return jsonify({'message': 'Error executing command', 'error': str(e)}), 500
+
 
 
 
