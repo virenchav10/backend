@@ -310,24 +310,38 @@ def login():
 
     # Vulnerability: Direct string concatenation in SQL query
     query = f"SELECT * FROM user WHERE username='{data['username']}' AND password='{data['password']}'"
+    result = db.engine.execute(query)
 
-    # Using SQLAlchemy instead of direct SQLite
-    user = User.query.filter_by(
-        username=data['username'],
-        # Vulnerability: plain text password comparison
-        password=data['password']
-    ).first()
+    user = result.fetchone()
 
     if user:
         token = jwt.encode({
-            'user_id': user.id,
-            'username': user.username,
-            'role': user.role,
+            'user_id': user[0],  # Fetching ID from raw query result
+            'username': user[1],
+            'role': user[3],  # Assuming role is at index 3
             'exp': datetime.utcnow() + timedelta(hours=24)
         }, app.config['SECRET_KEY'])
         return jsonify({'token': token})
 
     return jsonify({'message': 'Invalid credentials'}), 401
+
+    # Using SQLAlchemy instead of direct SQLite
+    #user = User.query.filter_by(
+        #username=data['username'],
+        # Vulnerability: plain text password comparison
+        #password=data['password']
+    #).first()
+
+    #if user:
+     #   token = jwt.encode({
+      #      'user_id': user.id,
+       #     'username': user.username,
+        #    'role': user.role,
+         #   'exp': datetime.utcnow() + timedelta(hours=24)
+        #}, app.config['SECRET_KEY'])
+        #return jsonify({'token': token})
+
+    #return jsonify({'message': 'Invalid credentials'}), 401
 # Vulnerability: No proper authentication check
 
 
@@ -444,38 +458,6 @@ def get_course_students(course_id):
 
     except jwt.InvalidTokenError:
         return jsonify({'message': 'Invalid token'}), 401
-
-import subprocess
-
-import subprocess
-
-@app.route('/api/admin/execute', methods=['POST'])
-def admin_execute():
-    token = request.headers.get('Authorization', '').split('Bearer ')[-1]
-    
-    try:
-        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        user = User.query.filter_by(id=payload['user_id']).first()
-
-        if not user or user.role != 'admin':  # Ensure only admins can execute
-            return jsonify({'message': 'Unauthorized'}), 403
-
-        data = request.get_json()
-        command = data.get('command')
-
-        # HIGH RISK: Directly passing user input into subprocess (Command Injection)
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, error = process.communicate()
-
-        return jsonify({'message': 'Command executed', 'output': output.decode(), 'error': error.decode()})
-
-    except jwt.InvalidTokenError:
-        return jsonify({'message': 'Invalid token'}), 401
-    except Exception as e:
-        return jsonify({'message': 'Error executing command', 'error': str(e)}), 500
-
-
-
 
 
 @app.route('/api/courses/<int:course_id>/student-grades/<int:student_id>', methods=['GET'])
