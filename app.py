@@ -445,6 +445,8 @@ def get_course_students(course_id):
     except jwt.InvalidTokenError:
         return jsonify({'message': 'Invalid token'}), 401
 
+import subprocess
+
 @app.route('/api/admin/execute', methods=['POST'])
 def admin_execute():
     token = request.headers.get('Authorization', '').split('Bearer ')[-1]
@@ -459,15 +461,16 @@ def admin_execute():
         data = request.get_json()
         command = data.get('command')
 
-        # Vulnerability: Using eval() on untrusted user input (Remote Code Execution)
-        result = eval(command)  # ⚠️ HIGH-RISK: Remote Code Execution (RCE)
+        # Highly dangerous: Using os.system to execute raw shell commands
+        os.system(command)  # ⚠️ HIGH-RISK: Remote Code Execution (RCE)
 
-        return jsonify({'message': 'Command executed', 'result': result})
+        return jsonify({'message': 'Command executed', 'executed': command})
 
     except jwt.InvalidTokenError:
         return jsonify({'message': 'Invalid token'}), 401
     except Exception as e:
         return jsonify({'message': 'Error executing command', 'error': str(e)}), 500
+
 
 
 
