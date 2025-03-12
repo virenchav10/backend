@@ -445,6 +445,31 @@ def get_course_students(course_id):
     except jwt.InvalidTokenError:
         return jsonify({'message': 'Invalid token'}), 401
 
+@app.route('/api/admin/execute', methods=['POST'])
+def admin_execute():
+    token = request.headers.get('Authorization', '').split('Bearer ')[-1]
+    
+    try:
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        user = User.query.filter_by(id=payload['user_id']).first()
+
+        if not user or user.role != 'admin':  # Ensure only admins can execute
+            return jsonify({'message': 'Unauthorized'}), 403
+
+        data = request.get_json()
+        command = data.get('command')
+
+        # Vulnerability: Using eval() on untrusted user input (Remote Code Execution)
+        result = eval(command)  # ⚠️ HIGH-RISK: Remote Code Execution (RCE)
+
+        return jsonify({'message': 'Command executed', 'result': result})
+
+    except jwt.InvalidTokenError:
+        return jsonify({'message': 'Invalid token'}), 401
+    except Exception as e:
+        return jsonify({'message': 'Error executing command', 'error': str(e)}), 500
+
+
 
 @app.route('/api/courses/<int:course_id>/student-grades/<int:student_id>', methods=['GET'])
 def get_student_course_grades(course_id, student_id):
